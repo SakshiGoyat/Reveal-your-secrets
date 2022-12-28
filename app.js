@@ -32,7 +32,7 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 const newSchema = new mongoose.Schema({
   email: String,
   password: String,
-  secret: String,
+  secrets: [],
 });
 
 newSchema.plugin(passportLocalMongoose);
@@ -65,7 +65,7 @@ app.get("/logout", (req, res) => {
   });
 });
 app.get("/secrets", (req, res) => {
-  User.find({ secret: { $ne: null } }, (err, foundUsers) => {
+  User.find({ secrets: { $ne: null } }, (err, foundUsers) => {
     if (err) {
       console.log(err);
     } else {
@@ -133,7 +133,7 @@ app
         console.log(err);
       } else {
         if (foundUser) {
-          foundUser.secret = submittedSecret;
+          foundUser.secrets.push(submittedSecret);
           foundUser.save((err) => {
             if (err) {
               console.log(err);
