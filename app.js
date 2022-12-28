@@ -32,20 +32,23 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 const newSchema = new mongoose.Schema({
   email: String,
   password: String,
+  secret: String,
 });
 
 newSchema.plugin(passportLocalMongoose);
 
-const user = new mongoose.model("user", newSchema);
+const User = new mongoose.model("user", newSchema);
 
-passport.use(user.createStrategy());
+passport.use(User.createStrategy());
 
 passport.serializeUser(function (user, done) {
   done(null, user);
 });
 
-passport.deserializeUser(function (user, done) {
-  done(null, user);
+passport.deserializeUser(function (id, done) {
+  User.findById(id, function (err, user) {
+    done(err, user);
+  });
 });
 
 app.get("/", (req, res) => {
@@ -62,11 +65,13 @@ app.get("/logout", (req, res) => {
   });
 });
 app.get("/secrets", (req, res) => {
-  if (req.isAuthenticated()) {
-    res.render("secrets");
-  } else {
-    res.redirect("/login");
-  }
+  User.find({ secret: { $ne: null } }, (err, foundUsers) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.render("secrets", { Secrets: foundUsers });
+    }
+  });
 });
 app
   .route("/login")
@@ -74,7 +79,7 @@ app
     res.render("login");
   })
   .post((req, res) => {
-    const newUser = new user({
+    const newUser = new User({
       email: req.body.username,
       password: req.body.password,
     });
@@ -95,7 +100,7 @@ app
     res.render("register");
   })
   .post((req, res) => {
-    user.register(
+    User.register(
       { username: req.body.username },
       req.body.password,
       function (err, user) {
@@ -111,6 +116,35 @@ app
     );
   });
 
+app
+  .route("/submit")
+  .get((req, res) => {
+    if (req.isAuthenticated()) {
+      res.render("submit");
+    } else {
+      res.redirect("/login");
+    }
+  })
+  .post((req, res) => {
+    const submittedSecret = req.body.secret;
+
+    User.findById(req.user.id, (err, foundUser) => {
+      if (err) {
+        console.log(err);
+      } else {
+        if (foundUser) {
+          foundUser.secret = submittedSecret;
+          foundUser.save((err) => {
+            if (err) {
+              console.log(err);
+            } else {
+              res.redirect("/secrets");
+            }
+          });
+        }
+      }
+    });
+  });
 app.listen(port, () => {
   console.log(`listening to ${port}`);
 });
